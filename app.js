@@ -32,7 +32,7 @@ let realSuitReady = false;
 const poseHoldMs = 900;
 const smoothing = 0.72;
 const previewMode = new URLSearchParams(window.location.search).get("preview") === "1";
-const assetVersion = "parts-v2";
+const assetVersion = "parts-v3";
 
 realSuitImage.onload = () => {
   realSuitReady = true;
@@ -934,8 +934,8 @@ function drawPartSuit(pose, width, height) {
   const bodyWidth = Math.min(width * 0.9, shoulderWidth * 2.15);
   const bodyHeight = bodyWidth * (body.naturalHeight / body.naturalWidth);
   const bodyX = shoulderCenter.x - bodyWidth / 2;
-  const bodyY = pose.neck.y - bodyHeight * 0.1;
-  const armWidth = Math.max(shoulderWidth * 0.48, 54);
+  const bodyY = pose.neck.y - bodyHeight * 0.2;
+  const armWidth = Math.max(shoulderWidth * 0.62, 68);
   const legWidth = Math.max(shoulderWidth * 0.58, 62);
   const leftWristEnd = extendPoint(pose.leftElbow, pose.leftWrist, armWidth * 0.78);
   const rightWristEnd = extendPoint(pose.rightElbow, pose.rightWrist, armWidth * 0.78);
@@ -963,13 +963,13 @@ function drawPartSuit(pose, width, height) {
   });
   drawPartAssetBetween(leftArm, pose.leftShoulder, leftWristEnd, armWidth, {
     shadow: true,
-    topOverlap: armWidth * 0.24,
+    topOverlap: armWidth * 0.42,
     bottomOverlap: armWidth * 0.2,
     anchorX: 0.5,
   });
   drawPartAssetBetween(rightArm, pose.rightShoulder, rightWristEnd, armWidth, {
     shadow: true,
-    topOverlap: armWidth * 0.24,
+    topOverlap: armWidth * 0.42,
     bottomOverlap: armWidth * 0.2,
     anchorX: 0.5,
   });
