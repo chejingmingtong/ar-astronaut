@@ -25,11 +25,28 @@ let realSuitReady = false;
 const poseHoldMs = 900;
 const smoothing = 0.72;
 const previewMode = new URLSearchParams(window.location.search).get("preview") === "1";
+const assetVersion = "real-suit-3";
 
 realSuitImage.onload = () => {
   realSuitReady = true;
 };
-realSuitImage.src = "./assets/astronaut-suit-real.png?v=real-suit-2";
+realSuitImage.src = `./assets/astronaut-suit-real.png?v=${assetVersion}`;
+
+const suitPart = {
+  torso: { sx: 250, sy: 100, sw: 540, sh: 780 },
+  leftUpperArm: { sx: 75, sy: 210, sw: 280, sh: 430 },
+  leftForearm: { sx: 50, sy: 520, sw: 275, sh: 360 },
+  leftGlove: { sx: 45, sy: 655, sw: 255, sh: 245 },
+  rightUpperArm: { sx: 685, sy: 210, sw: 280, sh: 430 },
+  rightForearm: { sx: 710, sy: 520, sw: 275, sh: 360 },
+  rightGlove: { sx: 755, sy: 655, sw: 255, sh: 245 },
+  leftThigh: { sx: 300, sy: 710, sw: 230, sh: 425 },
+  leftShin: { sx: 300, sy: 1000, sw: 230, sh: 360 },
+  leftBoot: { sx: 245, sy: 1220, sw: 300, sh: 285 },
+  rightThigh: { sx: 530, sy: 710, sw: 230, sh: 425 },
+  rightShin: { sx: 530, sy: 1000, sw: 230, sh: 360 },
+  rightBoot: { sx: 505, sy: 1220, sw: 300, sh: 285 },
+};
 
 const suitThemes = {
   classic: {
@@ -779,6 +796,166 @@ function drawSuit(pose, width, height) {
   ctx.restore();
 }
 
+function drawImagePart(part, x, y, drawWidth, drawHeight, options = {}) {
+  if (!realSuitReady) return;
+
+  ctx.save();
+  ctx.globalAlpha = options.alpha ?? 0.98;
+  if (options.shadow) {
+    ctx.shadowColor = "rgba(10, 20, 32, 0.2)";
+    ctx.shadowBlur = Math.max(6, drawWidth * 0.05);
+    ctx.shadowOffsetY = Math.max(2, drawWidth * 0.012);
+  }
+  ctx.drawImage(realSuitImage, part.sx, part.sy, part.sw, part.sh, x, y, drawWidth, drawHeight);
+  ctx.restore();
+}
+
+function drawImagePartBetween(part, start, end, drawWidth, options = {}) {
+  if (!realSuitReady) return;
+
+  const len = distance(start, end);
+  const angle = Math.atan2(end.y - start.y, end.x - start.x);
+  const topOverlap = options.topOverlap ?? drawWidth * 0.16;
+  const bottomOverlap = options.bottomOverlap ?? drawWidth * 0.18;
+  const drawHeight = len + topOverlap + bottomOverlap;
+  const anchorX = options.anchorX ?? 0.5;
+
+  ctx.save();
+  ctx.translate(start.x, start.y);
+  ctx.rotate(angle - Math.PI / 2);
+  ctx.globalAlpha = options.alpha ?? 0.98;
+  if (options.shadow) {
+    ctx.shadowColor = "rgba(10, 20, 32, 0.18)";
+    ctx.shadowBlur = Math.max(6, drawWidth * 0.05);
+    ctx.shadowOffsetY = Math.max(2, drawWidth * 0.012);
+  }
+  ctx.drawImage(
+    realSuitImage,
+    part.sx,
+    part.sy,
+    part.sw,
+    part.sh,
+    -drawWidth * anchorX,
+    -topOverlap,
+    drawWidth,
+    drawHeight
+  );
+  ctx.restore();
+}
+
+function extendPoint(from, to, amount) {
+  const len = distance(from, to) || 1;
+  return {
+    x: to.x + ((to.x - from.x) / len) * amount,
+    y: to.y + ((to.y - from.y) / len) * amount,
+    score: to.score,
+  };
+}
+
+function drawSegmentedRealSuit(pose, width, height) {
+  const theme = suitThemes.classic;
+  const shoulderCenter = midpoint(pose.leftShoulder, pose.rightShoulder);
+  const hipCenter = midpoint(pose.leftHip, pose.rightHip);
+  const shoulderWidth = distance(pose.leftShoulder, pose.rightShoulder);
+  const torsoHeight = Math.max(distance(shoulderCenter, hipCenter), height * 0.14);
+  const torsoWidth = Math.min(width * 0.88, shoulderWidth * 1.95);
+  const torsoDrawHeight = Math.max(torsoHeight * 1.72, torsoWidth * (suitPart.torso.sh / suitPart.torso.sw));
+  const torsoX = shoulderCenter.x - torsoWidth / 2;
+  const torsoY = pose.neck.y - torsoDrawHeight * 0.12;
+  const armWidth = Math.max(shoulderWidth * 0.48, 54);
+  const forearmWidth = armWidth * 0.92;
+  const thighWidth = Math.max(shoulderWidth * 0.52, 58);
+  const shinWidth = thighWidth * 0.9;
+  const leftAnkle = extendPoint(pose.leftHip, pose.leftKnee, shinWidth * 1.35);
+  const rightAnkle = extendPoint(pose.rightHip, pose.rightKnee, shinWidth * 1.35);
+  const headRadius = Math.max(shoulderWidth * 0.43, 48);
+  const helmetCenter = {
+    x: pose.head.x,
+    y: pose.head.y - headRadius * 0.16,
+  };
+
+  drawImagePartBetween(suitPart.leftUpperArm, pose.leftShoulder, pose.leftElbow, armWidth, {
+    shadow: true,
+    anchorX: 0.48,
+  });
+  drawImagePartBetween(suitPart.rightUpperArm, pose.rightShoulder, pose.rightElbow, armWidth, {
+    shadow: true,
+    anchorX: 0.52,
+  });
+  drawImagePartBetween(suitPart.leftThigh, pose.leftHip, pose.leftKnee, thighWidth, {
+    shadow: true,
+    topOverlap: thighWidth * 0.2,
+    bottomOverlap: thighWidth * 0.12,
+  });
+  drawImagePartBetween(suitPart.rightThigh, pose.rightHip, pose.rightKnee, thighWidth, {
+    shadow: true,
+    topOverlap: thighWidth * 0.2,
+    bottomOverlap: thighWidth * 0.12,
+  });
+
+  drawImagePart(suitPart.torso, torsoX, torsoY, torsoWidth, torsoDrawHeight, { shadow: true });
+
+  drawImagePartBetween(suitPart.leftForearm, pose.leftElbow, pose.leftWrist, forearmWidth, {
+    shadow: true,
+    topOverlap: forearmWidth * 0.16,
+    bottomOverlap: forearmWidth * 0.25,
+  });
+  drawImagePartBetween(suitPart.rightForearm, pose.rightElbow, pose.rightWrist, forearmWidth, {
+    shadow: true,
+    topOverlap: forearmWidth * 0.16,
+    bottomOverlap: forearmWidth * 0.25,
+  });
+  drawImagePartBetween(suitPart.leftShin, pose.leftKnee, leftAnkle, shinWidth, {
+    shadow: true,
+    topOverlap: shinWidth * 0.12,
+    bottomOverlap: shinWidth * 0.08,
+  });
+  drawImagePartBetween(suitPart.rightShin, pose.rightKnee, rightAnkle, shinWidth, {
+    shadow: true,
+    topOverlap: shinWidth * 0.12,
+    bottomOverlap: shinWidth * 0.08,
+  });
+
+  const gloveSize = forearmWidth * 1.25;
+  drawImagePart(
+    suitPart.leftGlove,
+    pose.leftWrist.x - gloveSize * 0.52,
+    pose.leftWrist.y - gloveSize * 0.2,
+    gloveSize,
+    gloveSize * (suitPart.leftGlove.sh / suitPart.leftGlove.sw),
+    { shadow: true }
+  );
+  drawImagePart(
+    suitPart.rightGlove,
+    pose.rightWrist.x - gloveSize * 0.48,
+    pose.rightWrist.y - gloveSize * 0.2,
+    gloveSize,
+    gloveSize * (suitPart.rightGlove.sh / suitPart.rightGlove.sw),
+    { shadow: true }
+  );
+
+  const bootSize = shinWidth * 1.58;
+  drawImagePart(
+    suitPart.leftBoot,
+    leftAnkle.x - bootSize * 0.54,
+    leftAnkle.y - bootSize * 0.08,
+    bootSize,
+    bootSize * (suitPart.leftBoot.sh / suitPart.leftBoot.sw),
+    { shadow: true }
+  );
+  drawImagePart(
+    suitPart.rightBoot,
+    rightAnkle.x - bootSize * 0.46,
+    rightAnkle.y - bootSize * 0.08,
+    bootSize,
+    bootSize * (suitPart.rightBoot.sh / suitPart.rightBoot.sw),
+    { shadow: true }
+  );
+
+  drawNeckSeal({ x: pose.head.x, y: helmetCenter.y + headRadius * 0.77 }, headRadius, theme);
+  drawGlassHelmet(helmetCenter, headRadius, theme);
+}
+
 function drawRealSuit(pose, width, height) {
   const theme = suitThemes.classic;
   const shoulderCenter = midpoint(pose.leftShoulder, pose.rightShoulder);
@@ -852,7 +1029,7 @@ function render() {
       hasPose = true;
     }
     if (realSuitReady) {
-      drawRealSuit(poseToDraw, width, height);
+      drawSegmentedRealSuit(poseToDraw, width, height);
     } else {
       drawSuit(poseToDraw, width, height);
     }
