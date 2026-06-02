@@ -29,7 +29,7 @@ const previewMode = new URLSearchParams(window.location.search).get("preview") =
 realSuitImage.onload = () => {
   realSuitReady = true;
 };
-realSuitImage.src = "./assets/astronaut-suit-real.png";
+realSuitImage.src = "./assets/astronaut-suit-real.png?v=real-suit-2";
 
 const suitThemes = {
   classic: {
