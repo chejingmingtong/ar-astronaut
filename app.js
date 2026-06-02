@@ -41,6 +41,9 @@ realSuitImage.src = `./assets/astronaut-suit-real.png?v=${assetVersion}`;
 
 function loadPartSuitImage(key, src) {
   const image = partSuitImages[key];
+  image.onload = () => {
+    render();
+  };
   image.src = `${src}?v=${assetVersion}`;
 }
 
