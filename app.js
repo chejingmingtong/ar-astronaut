@@ -11,6 +11,7 @@ const shareUrl = document.querySelector("#shareUrl");
 const qrImage = document.querySelector("#qrImage");
 const startLabel = document.querySelector("#startLabel");
 const captureButton = document.querySelector("#captureButton");
+const realSuitImage = new Image();
 
 let poseLandmarker;
 let running = false;
@@ -19,9 +20,16 @@ let hasPose = false;
 let smoothedPose = null;
 let lastGoodPoseAt = 0;
 let lastStatusText = "";
+let realSuitReady = false;
 
 const poseHoldMs = 900;
 const smoothing = 0.72;
+const previewMode = new URLSearchParams(window.location.search).get("preview") === "1";
+
+realSuitImage.onload = () => {
+  realSuitReady = true;
+};
+realSuitImage.src = "./assets/astronaut-suit-real.png";
 
 const suitThemes = {
   classic: {
@@ -222,6 +230,29 @@ function poseFromLandmarks(landmarks, width, height) {
     rightHip,
     leftKnee,
     rightKnee,
+  };
+}
+
+function previewPose(width, height) {
+  const cx = width / 2;
+  const shoulderY = height * 0.33;
+  const hipY = height * 0.58;
+  const shoulderW = Math.min(width * 0.34, height * 0.22);
+  const hipW = shoulderW * 0.72;
+
+  return {
+    head: { x: cx, y: height * 0.2, score: 1 },
+    neck: { x: cx, y: shoulderY - height * 0.03, score: 1 },
+    leftShoulder: { x: cx - shoulderW / 2, y: shoulderY, score: 1 },
+    rightShoulder: { x: cx + shoulderW / 2, y: shoulderY, score: 1 },
+    leftElbow: { x: cx - shoulderW * 0.72, y: height * 0.46, score: 1 },
+    rightElbow: { x: cx + shoulderW * 0.72, y: height * 0.46, score: 1 },
+    leftWrist: { x: cx - shoulderW * 0.72, y: height * 0.58, score: 1 },
+    rightWrist: { x: cx + shoulderW * 0.72, y: height * 0.58, score: 1 },
+    leftHip: { x: cx - hipW / 2, y: hipY, score: 1 },
+    rightHip: { x: cx + hipW / 2, y: hipY, score: 1 },
+    leftKnee: { x: cx - hipW * 0.42, y: height * 0.78, score: 1 },
+    rightKnee: { x: cx + hipW * 0.42, y: height * 0.78, score: 1 },
   };
 }
 
@@ -748,6 +779,35 @@ function drawSuit(pose, width, height) {
   ctx.restore();
 }
 
+function drawRealSuit(pose, width, height) {
+  const theme = suitThemes.classic;
+  const shoulderCenter = midpoint(pose.leftShoulder, pose.rightShoulder);
+  const hipCenter = midpoint(pose.leftHip, pose.rightHip);
+  const shoulderWidth = distance(pose.leftShoulder, pose.rightShoulder);
+  const torsoHeight = Math.max(distance(shoulderCenter, hipCenter), height * 0.14);
+  const imageRatio = realSuitImage.height / realSuitImage.width;
+  const suitWidth = Math.min(width * 0.92, Math.max(shoulderWidth * 2.45, torsoHeight * 1.38));
+  const suitHeight = suitWidth * imageRatio;
+  const suitX = shoulderCenter.x - suitWidth / 2;
+  const suitY = pose.neck.y - suitHeight * 0.095;
+  const headRadius = Math.max(shoulderWidth * 0.43, 48);
+  const helmetCenter = {
+    x: pose.head.x,
+    y: pose.head.y - headRadius * 0.16,
+  };
+
+  ctx.save();
+  ctx.globalAlpha = 0.98;
+  ctx.shadowColor = "rgba(10, 20, 32, 0.22)";
+  ctx.shadowBlur = Math.max(8, suitWidth * 0.045);
+  ctx.shadowOffsetY = Math.max(3, suitWidth * 0.012);
+  ctx.drawImage(realSuitImage, suitX, suitY, suitWidth, suitHeight);
+  ctx.restore();
+
+  drawNeckSeal({ x: pose.head.x, y: helmetCenter.y + headRadius * 0.77 }, headRadius, theme);
+  drawGlassHelmet(helmetCenter, headRadius, theme);
+}
+
 function clearStage() {
   const width = canvas.clientWidth;
   const height = canvas.clientHeight;
@@ -763,7 +823,9 @@ function render() {
   let pose = null;
   const now = performance.now();
 
-  if (poseLandmarker && video.readyState >= 2 && video.currentTime !== lastVideoTime) {
+  if (previewMode) {
+    pose = previewPose(width, height);
+  } else if (poseLandmarker && video.readyState >= 2 && video.currentTime !== lastVideoTime) {
     lastVideoTime = video.currentTime;
     const result = poseLandmarker.detectForVideo(video, now);
     if (result.landmarks?.[0]) {
@@ -789,7 +851,11 @@ function render() {
       setStatus("已检测到人体，正在贴合宇航服", "live");
       hasPose = true;
     }
-    drawSuit(poseToDraw, width, height);
+    if (realSuitReady) {
+      drawRealSuit(poseToDraw, width, height);
+    } else {
+      drawSuit(poseToDraw, width, height);
+    }
   }
 
   if (running) {
@@ -815,4 +881,8 @@ window.addEventListener("resize", resizeCanvas);
 
 setupShare();
 resizeCanvas();
+if (previewMode) {
+  qrPanel.classList.add("is-hidden");
+  setStatus("宇航服效果预览", "live");
+}
 render();
