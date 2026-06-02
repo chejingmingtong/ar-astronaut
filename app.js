@@ -12,6 +12,13 @@ const qrImage = document.querySelector("#qrImage");
 const startLabel = document.querySelector("#startLabel");
 const captureButton = document.querySelector("#captureButton");
 const realSuitImage = new Image();
+const partSuitImages = {
+  body: new Image(),
+  leftArm: new Image(),
+  rightArm: new Image(),
+  leftLeg: new Image(),
+  rightLeg: new Image(),
+};
 
 let poseLandmarker;
 let running = false;
@@ -25,12 +32,23 @@ let realSuitReady = false;
 const poseHoldMs = 900;
 const smoothing = 0.72;
 const previewMode = new URLSearchParams(window.location.search).get("preview") === "1";
-const assetVersion = "real-suit-3";
+const assetVersion = "parts-v2";
 
 realSuitImage.onload = () => {
   realSuitReady = true;
 };
 realSuitImage.src = `./assets/astronaut-suit-real.png?v=${assetVersion}`;
+
+function loadPartSuitImage(key, src) {
+  const image = partSuitImages[key];
+  image.src = `${src}?v=${assetVersion}`;
+}
+
+loadPartSuitImage("body", "./assets/parts/astronaut-body.png");
+loadPartSuitImage("leftArm", "./assets/parts/astronaut-arm-approved.png");
+loadPartSuitImage("rightArm", "./assets/parts/astronaut-arm-other.png");
+loadPartSuitImage("leftLeg", "./assets/parts/astronaut-leg-left-from-real.png");
+loadPartSuitImage("rightLeg", "./assets/parts/astronaut-leg-right-from-real.png");
 
 const suitPart = {
   torso: { sx: 250, sy: 100, sw: 540, sh: 780 },
@@ -222,10 +240,12 @@ function poseFromLandmarks(landmarks, width, height) {
   const rightHip = p(24);
   const leftElbow = p(13);
   const rightElbow = p(14);
-  const leftWrist = p(15);
-  const rightWrist = p(16);
-  const leftKnee = p(25);
-  const rightKnee = p(26);
+const leftWrist = p(15);
+const rightWrist = p(16);
+const leftKnee = p(25);
+const rightKnee = p(26);
+  const leftAnkle = p(27);
+  const rightAnkle = p(28);
   const coreConfidence = pointConfidence(leftShoulder, rightShoulder, leftHip, rightHip);
   const shoulderWidth = distance(leftShoulder, rightShoulder);
   const torsoHeight = distance(midpoint(leftShoulder, rightShoulder), midpoint(leftHip, rightHip));
@@ -247,6 +267,8 @@ function poseFromLandmarks(landmarks, width, height) {
     rightHip,
     leftKnee,
     rightKnee,
+    leftAnkle,
+    rightAnkle,
   };
 }
 
@@ -270,6 +292,8 @@ function previewPose(width, height) {
     rightHip: { x: cx + hipW / 2, y: hipY, score: 1 },
     leftKnee: { x: cx - hipW * 0.42, y: height * 0.78, score: 1 },
     rightKnee: { x: cx + hipW * 0.42, y: height * 0.78, score: 1 },
+    leftAnkle: { x: cx - hipW * 0.42, y: height * 0.92, score: 1 },
+    rightAnkle: { x: cx + hipW * 0.42, y: height * 0.92, score: 1 },
   };
 }
 
@@ -852,6 +876,106 @@ function extendPoint(from, to, amount) {
   };
 }
 
+function partSuitReady() {
+  return Object.values(partSuitImages).every((image) => image.complete && image.naturalWidth > 0);
+}
+
+function drawPartAsset(image, x, y, drawWidth, drawHeight, options = {}) {
+  if (!image.complete || !image.naturalWidth) return;
+
+  ctx.save();
+  ctx.globalAlpha = options.alpha ?? 0.98;
+  if (options.shadow) {
+    ctx.shadowColor = "rgba(10, 20, 32, 0.2)";
+    ctx.shadowBlur = Math.max(6, drawWidth * 0.05);
+    ctx.shadowOffsetY = Math.max(2, drawWidth * 0.012);
+  }
+  ctx.drawImage(image, x, y, drawWidth, drawHeight);
+  ctx.restore();
+}
+
+function drawPartAssetBetween(image, start, end, drawWidth, options = {}) {
+  if (!image.complete || !image.naturalWidth) return;
+
+  const len = distance(start, end);
+  const angle = Math.atan2(end.y - start.y, end.x - start.x);
+  const topOverlap = options.topOverlap ?? drawWidth * 0.12;
+  const bottomOverlap = options.bottomOverlap ?? drawWidth * 0.16;
+  const drawHeight = len + topOverlap + bottomOverlap;
+  const anchorX = options.anchorX ?? 0.5;
+
+  ctx.save();
+  ctx.translate(start.x, start.y);
+  ctx.rotate(angle - Math.PI / 2);
+  ctx.globalAlpha = options.alpha ?? 0.98;
+  if (options.shadow) {
+    ctx.shadowColor = "rgba(10, 20, 32, 0.18)";
+    ctx.shadowBlur = Math.max(6, drawWidth * 0.05);
+    ctx.shadowOffsetY = Math.max(2, drawWidth * 0.012);
+  }
+  ctx.drawImage(image, -drawWidth * anchorX, -topOverlap, drawWidth, drawHeight);
+  ctx.restore();
+}
+
+function drawPartSuit(pose, width, height) {
+  const theme = suitThemes.classic;
+  const shoulderCenter = midpoint(pose.leftShoulder, pose.rightShoulder);
+  const hipCenter = midpoint(pose.leftHip, pose.rightHip);
+  const shoulderWidth = distance(pose.leftShoulder, pose.rightShoulder);
+  const torsoHeight = Math.max(distance(shoulderCenter, hipCenter), height * 0.14);
+  const body = partSuitImages.body;
+  const leftArm = partSuitImages.leftArm;
+  const rightArm = partSuitImages.rightArm;
+  const leftLeg = partSuitImages.leftLeg;
+  const rightLeg = partSuitImages.rightLeg;
+  const bodyWidth = Math.min(width * 0.9, shoulderWidth * 2.15);
+  const bodyHeight = bodyWidth * (body.naturalHeight / body.naturalWidth);
+  const bodyX = shoulderCenter.x - bodyWidth / 2;
+  const bodyY = pose.neck.y - bodyHeight * 0.1;
+  const armWidth = Math.max(shoulderWidth * 0.48, 54);
+  const legWidth = Math.max(shoulderWidth * 0.58, 62);
+  const leftWristEnd = extendPoint(pose.leftElbow, pose.leftWrist, armWidth * 0.78);
+  const rightWristEnd = extendPoint(pose.rightElbow, pose.rightWrist, armWidth * 0.78);
+  const leftAnkle = pose.leftAnkle?.score > 0.2 ? pose.leftAnkle : extendPoint(pose.leftHip, pose.leftKnee, legWidth * 1.9);
+  const rightAnkle = pose.rightAnkle?.score > 0.2 ? pose.rightAnkle : extendPoint(pose.rightHip, pose.rightKnee, legWidth * 1.9);
+  const leftFootEnd = extendPoint(pose.leftKnee, leftAnkle, legWidth * 0.34);
+  const rightFootEnd = extendPoint(pose.rightKnee, rightAnkle, legWidth * 0.34);
+  const headRadius = Math.max(shoulderWidth * 0.43, 48);
+  const helmetCenter = {
+    x: pose.head.x,
+    y: pose.head.y - headRadius * 0.16,
+  };
+
+  drawPartAssetBetween(leftLeg, pose.leftHip, leftFootEnd, legWidth, {
+    shadow: true,
+    topOverlap: legWidth * 0.32,
+    bottomOverlap: legWidth * 0.18,
+    anchorX: 0.48,
+  });
+  drawPartAssetBetween(rightLeg, pose.rightHip, rightFootEnd, legWidth, {
+    shadow: true,
+    topOverlap: legWidth * 0.32,
+    bottomOverlap: legWidth * 0.18,
+    anchorX: 0.52,
+  });
+  drawPartAssetBetween(leftArm, pose.leftShoulder, leftWristEnd, armWidth, {
+    shadow: true,
+    topOverlap: armWidth * 0.24,
+    bottomOverlap: armWidth * 0.2,
+    anchorX: 0.5,
+  });
+  drawPartAssetBetween(rightArm, pose.rightShoulder, rightWristEnd, armWidth, {
+    shadow: true,
+    topOverlap: armWidth * 0.24,
+    bottomOverlap: armWidth * 0.2,
+    anchorX: 0.5,
+  });
+  drawPartAsset(body, bodyX, bodyY, bodyWidth, Math.max(bodyHeight, torsoHeight * 1.6), { shadow: true });
+
+  drawNeckSeal({ x: pose.head.x, y: helmetCenter.y + headRadius * 0.77 }, headRadius, theme);
+  drawGlassHelmet(helmetCenter, headRadius, theme);
+}
+
 function drawSegmentedRealSuit(pose, width, height) {
   const theme = suitThemes.classic;
   const shoulderCenter = midpoint(pose.leftShoulder, pose.rightShoulder);
@@ -866,8 +990,10 @@ function drawSegmentedRealSuit(pose, width, height) {
   const forearmWidth = armWidth * 0.92;
   const thighWidth = Math.max(shoulderWidth * 0.52, 58);
   const shinWidth = thighWidth * 0.9;
-  const leftAnkle = extendPoint(pose.leftHip, pose.leftKnee, shinWidth * 1.35);
-  const rightAnkle = extendPoint(pose.rightHip, pose.rightKnee, shinWidth * 1.35);
+  const leftAnkle = pose.leftAnkle?.score > 0.2 ? pose.leftAnkle : extendPoint(pose.leftHip, pose.leftKnee, shinWidth * 1.35);
+  const rightAnkle = pose.rightAnkle?.score > 0.2 ? pose.rightAnkle : extendPoint(pose.rightHip, pose.rightKnee, shinWidth * 1.35);
+  const leftHandEnd = extendPoint(pose.leftElbow, pose.leftWrist, forearmWidth * 0.62);
+  const rightHandEnd = extendPoint(pose.rightElbow, pose.rightWrist, forearmWidth * 0.62);
   const headRadius = Math.max(shoulderWidth * 0.43, 48);
   const helmetCenter = {
     x: pose.head.x,
@@ -916,41 +1042,33 @@ function drawSegmentedRealSuit(pose, width, height) {
     bottomOverlap: shinWidth * 0.08,
   });
 
-  const gloveSize = forearmWidth * 1.25;
-  drawImagePart(
-    suitPart.leftGlove,
-    pose.leftWrist.x - gloveSize * 0.52,
-    pose.leftWrist.y - gloveSize * 0.2,
-    gloveSize,
-    gloveSize * (suitPart.leftGlove.sh / suitPart.leftGlove.sw),
-    { shadow: true }
-  );
-  drawImagePart(
-    suitPart.rightGlove,
-    pose.rightWrist.x - gloveSize * 0.48,
-    pose.rightWrist.y - gloveSize * 0.2,
-    gloveSize,
-    gloveSize * (suitPart.rightGlove.sh / suitPart.rightGlove.sw),
-    { shadow: true }
-  );
+  drawImagePartBetween(suitPart.leftGlove, pose.leftWrist, leftHandEnd, forearmWidth * 1.05, {
+    shadow: true,
+    topOverlap: forearmWidth * 0.18,
+    bottomOverlap: forearmWidth * 0.28,
+    anchorX: 0.48,
+  });
+  drawImagePartBetween(suitPart.rightGlove, pose.rightWrist, rightHandEnd, forearmWidth * 1.05, {
+    shadow: true,
+    topOverlap: forearmWidth * 0.18,
+    bottomOverlap: forearmWidth * 0.28,
+    anchorX: 0.52,
+  });
 
-  const bootSize = shinWidth * 1.58;
-  drawImagePart(
-    suitPart.leftBoot,
-    leftAnkle.x - bootSize * 0.54,
-    leftAnkle.y - bootSize * 0.08,
-    bootSize,
-    bootSize * (suitPart.leftBoot.sh / suitPart.leftBoot.sw),
-    { shadow: true }
-  );
-  drawImagePart(
-    suitPart.rightBoot,
-    rightAnkle.x - bootSize * 0.46,
-    rightAnkle.y - bootSize * 0.08,
-    bootSize,
-    bootSize * (suitPart.rightBoot.sh / suitPart.rightBoot.sw),
-    { shadow: true }
-  );
+  const leftFootEnd = extendPoint(pose.leftKnee, leftAnkle, shinWidth * 0.58);
+  const rightFootEnd = extendPoint(pose.rightKnee, rightAnkle, shinWidth * 0.58);
+  drawImagePartBetween(suitPart.leftBoot, leftAnkle, leftFootEnd, shinWidth * 1.42, {
+    shadow: true,
+    topOverlap: shinWidth * 0.2,
+    bottomOverlap: shinWidth * 0.42,
+    anchorX: 0.54,
+  });
+  drawImagePartBetween(suitPart.rightBoot, rightAnkle, rightFootEnd, shinWidth * 1.42, {
+    shadow: true,
+    topOverlap: shinWidth * 0.2,
+    bottomOverlap: shinWidth * 0.42,
+    anchorX: 0.46,
+  });
 
   drawNeckSeal({ x: pose.head.x, y: helmetCenter.y + headRadius * 0.77 }, headRadius, theme);
   drawGlassHelmet(helmetCenter, headRadius, theme);
@@ -1028,7 +1146,9 @@ function render() {
       setStatus("已检测到人体，正在贴合宇航服", "live");
       hasPose = true;
     }
-    if (realSuitReady) {
+    if (partSuitReady()) {
+      drawPartSuit(poseToDraw, width, height);
+    } else if (realSuitReady) {
       drawSegmentedRealSuit(poseToDraw, width, height);
     } else {
       drawSuit(poseToDraw, width, height);
