@@ -254,32 +254,81 @@ function roundedRect(x, y, width, height, radius) {
   ctx.closePath();
 }
 
-function capsule(start, end, width, color, shade) {
+function drawFabricGrain(x, y, width, height, density, alpha = 0.12) {
+  const count = Math.max(8, Math.floor((width * height * density) / 900));
+  const step = Math.max(6, Math.sqrt((width * height) / count));
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = "#7d93a5";
+  ctx.lineWidth = 1;
+  for (let i = 0; i < count; i += 1) {
+    const col = i % Math.max(1, Math.floor(width / step));
+    const row = Math.floor(i / Math.max(1, Math.floor(width / step)));
+    const px = x + ((col * step + row * 3.7) % width);
+    const py = y + ((row * step + col * 2.3) % height);
+    const len = 2 + ((i * 7) % 5);
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(px + len, py + (((i * 11) % 18) - 9) / 10);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawSoftShadow(pathFn, blur, alpha) {
+  ctx.save();
+  ctx.shadowColor = `rgba(10, 20, 32, ${alpha})`;
+  ctx.shadowBlur = blur;
+  ctx.shadowOffsetY = blur * 0.24;
+  pathFn();
+  ctx.fillStyle = "rgba(10, 20, 32, 0.08)";
+  ctx.fill();
+  ctx.restore();
+}
+
+function capsule(start, end, width, color, shade, options = {}) {
   const angle = Math.atan2(end.y - start.y, end.x - start.x);
   const len = distance(start, end);
+  const cuffColor = options.cuffColor || "#2f6cae";
 
   ctx.save();
   ctx.translate(start.x, start.y);
   ctx.rotate(angle);
+  drawSoftShadow(() => roundedRect(0, -width / 2, len, width, width / 2), width * 0.22, 0.18);
+
   const gradient = ctx.createLinearGradient(0, -width / 2, 0, width / 2);
   gradient.addColorStop(0, "#ffffff");
-  gradient.addColorStop(0.52, color);
+  gradient.addColorStop(0.18, "#f8fbfd");
+  gradient.addColorStop(0.58, color);
+  gradient.addColorStop(0.88, "#d4e0e8");
   gradient.addColorStop(1, shade);
   ctx.fillStyle = gradient;
   roundedRect(0, -width / 2, len, width, width / 2);
   ctx.fill();
-  ctx.strokeStyle = "rgba(86, 110, 129, 0.52)";
+  ctx.strokeStyle = "rgba(75, 96, 113, 0.46)";
   ctx.lineWidth = Math.max(2, width * 0.045);
   ctx.stroke();
 
-  ctx.strokeStyle = "rgba(118, 139, 155, 0.48)";
-  ctx.lineWidth = Math.max(1.5, width * 0.032);
-  for (let i = 0.24; i <= 0.76; i += 0.26) {
+  ctx.strokeStyle = "rgba(112, 132, 148, 0.44)";
+  ctx.lineWidth = Math.max(1.5, width * 0.028);
+  for (let i = 0.18; i <= 0.84; i += 0.16) {
     ctx.beginPath();
-    ctx.moveTo(len * i, -width * 0.38);
-    ctx.quadraticCurveTo(len * (i + 0.03), 0, len * i, width * 0.38);
+    ctx.moveTo(len * i, -width * 0.4);
+    ctx.quadraticCurveTo(len * (i + 0.025), 0, len * i, width * 0.4);
     ctx.stroke();
   }
+
+  if (options.cuffs !== false) {
+    ctx.fillStyle = cuffColor;
+    roundedRect(len * 0.02, -width * 0.52, Math.max(5, width * 0.14), width * 1.04, width * 0.07);
+    ctx.fill();
+    roundedRect(len - Math.max(5, width * 0.16), -width * 0.52, Math.max(5, width * 0.14), width * 1.04, width * 0.07);
+    ctx.fill();
+  }
+
+  ctx.globalAlpha = 0.38;
+  drawFabricGrain(0, -width * 0.44, len, width * 0.88, 0.45, 0.4);
   ctx.restore();
 }
 
@@ -344,12 +393,25 @@ function drawBoot(point, width, theme, flip = 1) {
   ctx.save();
   ctx.translate(point.x, point.y);
   ctx.scale(flip, 1);
-  ctx.fillStyle = "#e6edf3";
-  roundedRect(-width * 0.5, -width * 0.32, width * 0.82, width * 0.78, width * 0.2);
+  drawSoftShadow(() => roundedRect(-width * 0.58, -width * 0.36, width, width * 0.84, width * 0.22), width * 0.18, 0.2);
+  const bootGradient = ctx.createLinearGradient(0, -width * 0.36, 0, width * 0.55);
+  bootGradient.addColorStop(0, "#ffffff");
+  bootGradient.addColorStop(0.58, "#dce7ee");
+  bootGradient.addColorStop(1, "#9baebe");
+  ctx.fillStyle = bootGradient;
+  roundedRect(-width * 0.58, -width * 0.36, width * 0.9, width * 0.84, width * 0.22);
   ctx.fill();
-  ctx.fillStyle = "#4f6070";
-  roundedRect(-width * 0.42, width * 0.28, width * 0.92, width * 0.28, width * 0.1);
+  ctx.fillStyle = "#455a6b";
+  roundedRect(-width * 0.52, width * 0.28, width * 1.05, width * 0.3, width * 0.1);
   ctx.fill();
+  ctx.strokeStyle = "#6f8291";
+  ctx.lineWidth = Math.max(2, width * 0.035);
+  for (let i = 0; i < 4; i += 1) {
+    ctx.beginPath();
+    ctx.moveTo(-width * 0.38 + i * width * 0.18, width * 0.34);
+    ctx.lineTo(-width * 0.3 + i * width * 0.18, width * 0.5);
+    ctx.stroke();
+  }
   ctx.strokeStyle = "rgba(35, 49, 69, 0.5)";
   ctx.lineWidth = Math.max(2, width * 0.05);
   ctx.stroke();
@@ -358,7 +420,11 @@ function drawBoot(point, width, theme, flip = 1) {
 
 function drawGlove(point, width, theme) {
   ctx.save();
-  ctx.fillStyle = "#eef4f8";
+  const gloveGradient = ctx.createRadialGradient(point.x - width * 0.14, point.y - width * 0.18, width * 0.1, point.x, point.y, width * 0.62);
+  gloveGradient.addColorStop(0, "#ffffff");
+  gloveGradient.addColorStop(0.58, "#e4edf4");
+  gloveGradient.addColorStop(1, "#9caebb");
+  ctx.fillStyle = gloveGradient;
   ctx.beginPath();
   ctx.arc(point.x, point.y, width * 0.48, 0, Math.PI * 2);
   ctx.fill();
@@ -368,6 +434,14 @@ function drawGlove(point, width, theme) {
   ctx.fillStyle = "#9fb0bd";
   roundedRect(point.x - width * 0.35, point.y - width * 0.12, width * 0.7, width * 0.24, width * 0.1);
   ctx.fill();
+  ctx.strokeStyle = "rgba(93, 111, 126, 0.42)";
+  ctx.lineWidth = Math.max(1, width * 0.026);
+  for (let i = -0.2; i <= 0.2; i += 0.14) {
+    ctx.beginPath();
+    ctx.moveTo(point.x + width * i, point.y - width * 0.34);
+    ctx.lineTo(point.x + width * (i + 0.08), point.y - width * 0.02);
+    ctx.stroke();
+  }
   ctx.restore();
 }
 
@@ -430,8 +504,17 @@ function drawLifeSupportPack(center, suitWidth, torsoHeight, theme) {
   const packHeight = torsoHeight * 0.92;
 
   ctx.save();
+  drawSoftShadow(
+    () => roundedRect(center.x - packWidth / 2, center.y - packHeight * 0.12, packWidth, packHeight, packWidth * 0.22),
+    suitWidth * 0.08,
+    0.2
+  );
   roundedRect(center.x - packWidth / 2, center.y - packHeight * 0.12, packWidth, packHeight, packWidth * 0.22);
-  ctx.fillStyle = "rgba(182, 194, 204, 0.72)";
+  const packGradient = ctx.createLinearGradient(center.x - packWidth / 2, center.y, center.x + packWidth / 2, center.y + packHeight);
+  packGradient.addColorStop(0, "rgba(238, 245, 249, 0.86)");
+  packGradient.addColorStop(0.58, "rgba(176, 190, 201, 0.78)");
+  packGradient.addColorStop(1, "rgba(110, 132, 149, 0.78)");
+  ctx.fillStyle = packGradient;
   ctx.fill();
   ctx.strokeStyle = "rgba(78, 96, 112, 0.55)";
   ctx.lineWidth = Math.max(2, suitWidth * 0.018);
@@ -445,6 +528,10 @@ function drawLifeSupportPack(center, suitWidth, torsoHeight, theme) {
   ctx.moveTo(center.x + packWidth * 0.34, center.y + packHeight * 0.02);
   ctx.lineTo(center.x + packWidth * 0.34, center.y + packHeight * 0.62);
   ctx.stroke();
+
+  ctx.fillStyle = "rgba(58, 75, 90, 0.22)";
+  roundedRect(center.x - packWidth * 0.18, center.y + packHeight * 0.46, packWidth * 0.36, packHeight * 0.18, packWidth * 0.06);
+  ctx.fill();
   ctx.restore();
 }
 
@@ -455,8 +542,13 @@ function drawChestUnit(center, suitWidth, torsoHeight, theme) {
   const y = center.y - unitHeight / 2;
 
   ctx.save();
+  drawSoftShadow(() => roundedRect(x, y, unitWidth, unitHeight, unitWidth * 0.12), suitWidth * 0.035, 0.18);
   roundedRect(x, y, unitWidth, unitHeight, unitWidth * 0.12);
-  ctx.fillStyle = "#eef3f7";
+  const unitGradient = ctx.createLinearGradient(x, y, x + unitWidth, y + unitHeight);
+  unitGradient.addColorStop(0, "#ffffff");
+  unitGradient.addColorStop(0.48, "#e9f0f5");
+  unitGradient.addColorStop(1, "#b8c8d4");
+  ctx.fillStyle = unitGradient;
   ctx.fill();
   ctx.strokeStyle = "rgba(74, 92, 108, 0.68)";
   ctx.lineWidth = Math.max(2, suitWidth * 0.016);
@@ -481,6 +573,16 @@ function drawChestUnit(center, suitWidth, torsoHeight, theme) {
   ctx.lineTo(x + unitWidth * 0.86, y + unitHeight * 0.72);
   ctx.stroke();
 
+  ctx.fillStyle = "#e85f44";
+  ctx.beginPath();
+  ctx.arc(x + unitWidth * 0.82, y + unitHeight * 0.3, unitWidth * 0.045, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#f4c84f";
+  ctx.beginPath();
+  ctx.arc(x + unitWidth * 0.82, y + unitHeight * 0.52, unitWidth * 0.04, 0, Math.PI * 2);
+  ctx.fill();
+
   ctx.restore();
 }
 
@@ -499,18 +601,26 @@ function drawGlassHelmet(center, radius, theme) {
   gradient.addColorStop(1, "rgba(60, 130, 160, 0.16)");
 
   ctx.save();
+  ctx.globalCompositeOperation = "source-over";
   ctx.beginPath();
   ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
   ctx.fillStyle = gradient;
   ctx.fill();
-  ctx.strokeStyle = "rgba(231, 249, 255, 0.96)";
-  ctx.lineWidth = Math.max(4, radius * 0.07);
+
+  ctx.strokeStyle = "rgba(236, 243, 247, 0.98)";
+  ctx.lineWidth = Math.max(6, radius * 0.1);
   ctx.stroke();
 
-  ctx.strokeStyle = "rgba(52, 214, 197, 0.54)";
-  ctx.lineWidth = Math.max(2, radius * 0.026);
+  ctx.strokeStyle = "rgba(42, 69, 92, 0.82)";
+  ctx.lineWidth = Math.max(3, radius * 0.045);
   ctx.beginPath();
-  ctx.arc(center.x, center.y, radius * 0.82, Math.PI * 0.08, Math.PI * 0.92);
+  ctx.arc(center.x, center.y, radius * 0.88, Math.PI * 0.08, Math.PI * 0.92);
+  ctx.stroke();
+
+  ctx.strokeStyle = "rgba(20, 35, 53, 0.26)";
+  ctx.lineWidth = Math.max(2, radius * 0.028);
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, radius * 0.72, Math.PI * 0.15, Math.PI * 0.85);
   ctx.stroke();
 
   ctx.strokeStyle = "rgba(255, 255, 255, 0.72)";
@@ -524,6 +634,29 @@ function drawGlassHelmet(center, radius, theme) {
   ctx.ellipse(center.x - radius * 0.34, center.y - radius * 0.42, radius * 0.14, radius * 0.07, -0.45, 0, Math.PI * 2);
   ctx.fill();
 
+  ctx.restore();
+}
+
+function drawNeckSeal(center, radius, theme) {
+  ctx.save();
+  const ringWidth = radius * 1.34;
+  const ringHeight = radius * 0.38;
+  const x = center.x - ringWidth / 2;
+  const y = center.y - ringHeight * 0.18;
+
+  roundedRect(x, y, ringWidth, ringHeight, ringHeight * 0.45);
+  ctx.fillStyle = "#f4f7f9";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(68, 86, 102, 0.66)";
+  ctx.lineWidth = Math.max(3, radius * 0.05);
+  ctx.stroke();
+
+  ctx.strokeStyle = "#246ab8";
+  ctx.lineWidth = Math.max(2, radius * 0.035);
+  ctx.beginPath();
+  ctx.moveTo(x + ringWidth * 0.18, y + ringHeight * 0.5);
+  ctx.lineTo(x + ringWidth * 0.82, y + ringHeight * 0.5);
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -572,6 +705,7 @@ function drawSuit(pose, width, height) {
   torsoGradient.addColorStop(0, "#ffffff");
   torsoGradient.addColorStop(0.48, theme.shell);
   torsoGradient.addColorStop(1, "#c7d4dd");
+  drawSoftShadow(() => roundedRect(torsoX, torsoY, suitWidth, torsoHeight * 1.16, suitWidth * 0.26), suitWidth * 0.06, 0.16);
   roundedRect(torsoX, torsoY, suitWidth, torsoHeight * 1.16, suitWidth * 0.26);
   ctx.fillStyle = torsoGradient;
   ctx.fill();
@@ -583,6 +717,7 @@ function drawSuit(pose, width, height) {
   ctx.fillStyle = "rgba(255, 255, 255, 0.42)";
   roundedRect(torsoX + suitWidth * 0.1, torsoY + torsoHeight * 0.1, suitWidth * 0.18, torsoHeight * 0.76, 14);
   ctx.fill();
+  drawFabricGrain(torsoX + suitWidth * 0.08, torsoY + torsoHeight * 0.08, suitWidth * 0.84, torsoHeight * 0.92, 0.34, 0.12);
 
   const chestCenter = {
     x: shoulderCenter.x,
@@ -595,6 +730,7 @@ function drawSuit(pose, width, height) {
   drawMissionPatch(torsoX + suitWidth * 0.75, torsoY + torsoHeight * 0.22, suitWidth * 0.08);
 
   const helmetY = pose.head.y - headRadius * 0.18;
+  drawNeckSeal({ x: pose.head.x, y: helmetY + headRadius * 0.76 }, headRadius, theme);
   roundedRect(pose.head.x - headRadius * 0.72, helmetY + headRadius * 0.62, headRadius * 1.44, headRadius * 0.44, 16);
   ctx.fillStyle = theme.shell;
   ctx.fill();
