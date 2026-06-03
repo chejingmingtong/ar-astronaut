@@ -36,7 +36,7 @@ let currentStream = null;
 const poseHoldMs = 900;
 const smoothing = 0.72;
 const previewMode = new URLSearchParams(window.location.search).get("preview") === "1";
-const assetVersion = "drawn-camera-v2";
+const assetVersion = "drawn-camera-v3";
 
 realSuitImage.onload = () => {
   realSuitReady = true;
@@ -224,7 +224,7 @@ async function startCamera() {
     running = true;
     startLabel.textContent = "AR 识别中";
     startButton.disabled = true;
-    stage.classList.toggle("is-rear-camera", cameraFacingMode === "environment");
+    stage.classList.toggle("is-front-camera", cameraFacingMode === "user");
     setStatus(cameraFacingMode === "environment" ? "后置摄像头已开启，请对准人体" : "前置摄像头已开启，请站入画面", "live");
     requestAnimationFrame(render);
   } catch (error) {
@@ -1288,7 +1288,7 @@ captureButton.addEventListener("click", () => {
 startButton.addEventListener("click", startCamera);
 switchCameraButton.addEventListener("click", async () => {
   cameraFacingMode = cameraFacingMode === "user" ? "environment" : "user";
-  stage.classList.toggle("is-rear-camera", cameraFacingMode === "environment");
+  stage.classList.toggle("is-front-camera", cameraFacingMode === "user");
 
   if (currentStream || running) {
     startButton.disabled = true;

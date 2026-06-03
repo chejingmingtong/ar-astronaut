@@ -70,14 +70,14 @@ input {
 }
 
 #camera {
-  transform: scaleX(-1);
+  transform: none;
   background:
     linear-gradient(180deg, rgba(246, 251, 255, 0.78), rgba(129, 210, 228, 0.42)),
     #c6eaf2;
 }
 
-.stage.is-rear-camera #camera {
-  transform: none;
+.stage.is-front-camera #camera {
+  transform: scaleX(-1);
 }
 
 #arCanvas {
