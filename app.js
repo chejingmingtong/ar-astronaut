@@ -32,7 +32,7 @@ let realSuitReady = false;
 const poseHoldMs = 900;
 const smoothing = 0.72;
 const previewMode = new URLSearchParams(window.location.search).get("preview") === "1";
-const assetVersion = "parts-v3";
+const assetVersion = "parts-v4";
 
 realSuitImage.onload = () => {
   realSuitReady = true;
@@ -879,6 +879,10 @@ function extendPoint(from, to, amount) {
   };
 }
 
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
 function partSuitReady() {
   return Object.values(partSuitImages).every((image) => image.complete && image.naturalWidth > 0);
 }
@@ -931,22 +935,26 @@ function drawPartSuit(pose, width, height) {
   const rightArm = partSuitImages.rightArm;
   const leftLeg = partSuitImages.leftLeg;
   const rightLeg = partSuitImages.rightLeg;
-  const bodyWidth = Math.min(width * 0.9, shoulderWidth * 2.15);
+  const stableShoulderWidth = clamp(shoulderWidth, width * 0.18, width * 0.42);
+  const bodyWidth = clamp(stableShoulderWidth * 1.7, width * 0.34, width * 0.66);
   const bodyHeight = bodyWidth * (body.naturalHeight / body.naturalWidth);
   const bodyX = shoulderCenter.x - bodyWidth / 2;
-  const bodyY = pose.neck.y - bodyHeight * 0.2;
-  const armWidth = Math.max(shoulderWidth * 0.62, 68);
-  const legWidth = Math.max(shoulderWidth * 0.58, 62);
-  const leftWristEnd = extendPoint(pose.leftElbow, pose.leftWrist, armWidth * 0.78);
-  const rightWristEnd = extendPoint(pose.rightElbow, pose.rightWrist, armWidth * 0.78);
+  const bodyY = shoulderCenter.y - bodyHeight * 0.33;
+  const armWidth = clamp(bodyWidth * 0.2, 52, 112);
+  const legWidth = clamp(bodyWidth * 0.2, 52, 110);
+  const leftWrist = pose.leftWrist?.score > 0.25 ? pose.leftWrist : extendPoint(pose.leftShoulder, pose.leftElbow, armWidth * 2.2);
+  const rightWrist = pose.rightWrist?.score > 0.25 ? pose.rightWrist : extendPoint(pose.rightShoulder, pose.rightElbow, armWidth * 2.2);
+  const leftWristEnd = extendPoint(pose.leftElbow, leftWrist, armWidth * 0.46);
+  const rightWristEnd = extendPoint(pose.rightElbow, rightWrist, armWidth * 0.46);
   const leftAnkle = pose.leftAnkle?.score > 0.2 ? pose.leftAnkle : extendPoint(pose.leftHip, pose.leftKnee, legWidth * 1.9);
   const rightAnkle = pose.rightAnkle?.score > 0.2 ? pose.rightAnkle : extendPoint(pose.rightHip, pose.rightKnee, legWidth * 1.9);
   const leftFootEnd = extendPoint(pose.leftKnee, leftAnkle, legWidth * 0.34);
   const rightFootEnd = extendPoint(pose.rightKnee, rightAnkle, legWidth * 0.34);
-  const headRadius = Math.max(shoulderWidth * 0.43, 48);
+  const faceToShoulder = Math.max(distance(pose.head, shoulderCenter), height * 0.1);
+  const headRadius = clamp(faceToShoulder * 0.46, 48, bodyWidth * 0.36);
   const helmetCenter = {
     x: pose.head.x,
-    y: pose.head.y - headRadius * 0.16,
+    y: pose.head.y - headRadius * 0.06,
   };
 
   drawPartAssetBetween(leftLeg, pose.leftHip, leftFootEnd, legWidth, {
@@ -961,19 +969,21 @@ function drawPartSuit(pose, width, height) {
     bottomOverlap: legWidth * 0.18,
     anchorX: 0.52,
   });
+  drawPartAsset(body, bodyX, bodyY, bodyWidth, Math.max(bodyHeight, torsoHeight * 1.6), { shadow: true });
   drawPartAssetBetween(leftArm, pose.leftShoulder, leftWristEnd, armWidth, {
     shadow: true,
-    topOverlap: armWidth * 0.42,
-    bottomOverlap: armWidth * 0.2,
+    topOverlap: armWidth * 0.18,
+    bottomOverlap: armWidth * 0.16,
     anchorX: 0.5,
+    alpha: 0.96,
   });
   drawPartAssetBetween(rightArm, pose.rightShoulder, rightWristEnd, armWidth, {
     shadow: true,
-    topOverlap: armWidth * 0.42,
-    bottomOverlap: armWidth * 0.2,
+    topOverlap: armWidth * 0.18,
+    bottomOverlap: armWidth * 0.16,
     anchorX: 0.5,
+    alpha: 0.96,
   });
-  drawPartAsset(body, bodyX, bodyY, bodyWidth, Math.max(bodyHeight, torsoHeight * 1.6), { shadow: true });
 
   drawNeckSeal({ x: pose.head.x, y: helmetCenter.y + headRadius * 0.77 }, headRadius, theme);
   drawGlassHelmet(helmetCenter, headRadius, theme);
