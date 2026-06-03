@@ -36,7 +36,7 @@ let currentStream = null;
 const poseHoldMs = 900;
 const smoothing = 0.72;
 const previewMode = new URLSearchParams(window.location.search).get("preview") === "1";
-const assetVersion = "drawn-camera-v1";
+const assetVersion = "drawn-camera-v2";
 
 realSuitImage.onload = () => {
   realSuitReady = true;
@@ -176,6 +176,31 @@ function stopCameraStream() {
   currentStream = null;
 }
 
+async function getCameraStream() {
+  const baseVideo = {
+    width: { ideal: 1280 },
+    height: { ideal: 720 },
+  };
+
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      video: {
+        ...baseVideo,
+        facingMode: { exact: cameraFacingMode },
+      },
+      audio: false,
+    });
+  } catch (error) {
+    return navigator.mediaDevices.getUserMedia({
+      video: {
+        ...baseVideo,
+        facingMode: { ideal: cameraFacingMode },
+      },
+      audio: false,
+    });
+  }
+}
+
 async function startCamera() {
   try {
     const model = await loadPoseModel();
@@ -185,14 +210,12 @@ async function startCamera() {
     }
 
     stopCameraStream();
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: cameraFacingMode },
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-      },
-      audio: false,
-    });
+    const stream = await getCameraStream();
+    const actualFacingMode = stream.getVideoTracks()[0]?.getSettings?.().facingMode;
+
+    if (actualFacingMode === "user" || actualFacingMode === "environment") {
+      cameraFacingMode = actualFacingMode;
+    }
 
     currentStream = stream;
     video.srcObject = stream;
