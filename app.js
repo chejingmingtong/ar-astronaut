@@ -32,7 +32,7 @@ let realSuitReady = false;
 const poseHoldMs = 900;
 const smoothing = 0.72;
 const previewMode = new URLSearchParams(window.location.search).get("preview") === "1";
-const assetVersion = "parts-v4";
+const assetVersion = "drawn-v1";
 
 realSuitImage.onload = () => {
   realSuitReady = true;
@@ -661,6 +661,75 @@ function drawChestUnit(center, suitWidth, torsoHeight, theme) {
   ctx.restore();
 }
 
+function drawCanvasSuitHardware(torsoX, torsoY, suitWidth, torsoHeight) {
+  const strapWidth = Math.max(7, suitWidth * 0.055);
+  const beltY = torsoY + torsoHeight * 0.92;
+  const collarY = torsoY - torsoHeight * 0.03;
+
+  ctx.save();
+
+  ctx.strokeStyle = "rgba(82, 96, 108, 0.72)";
+  ctx.lineWidth = strapWidth;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(torsoX + suitWidth * 0.2, torsoY + torsoHeight * 0.08);
+  ctx.lineTo(torsoX + suitWidth * 0.38, torsoY + torsoHeight * 0.74);
+  ctx.moveTo(torsoX + suitWidth * 0.8, torsoY + torsoHeight * 0.08);
+  ctx.lineTo(torsoX + suitWidth * 0.62, torsoY + torsoHeight * 0.74);
+  ctx.stroke();
+
+  ctx.strokeStyle = "#1e6db4";
+  ctx.lineWidth = Math.max(4, strapWidth * 0.42);
+  ctx.beginPath();
+  ctx.moveTo(torsoX + suitWidth * 0.23, torsoY + torsoHeight * 0.14);
+  ctx.lineTo(torsoX + suitWidth * 0.4, torsoY + torsoHeight * 0.72);
+  ctx.moveTo(torsoX + suitWidth * 0.77, torsoY + torsoHeight * 0.14);
+  ctx.lineTo(torsoX + suitWidth * 0.6, torsoY + torsoHeight * 0.72);
+  ctx.stroke();
+
+  ctx.fillStyle = "rgba(236, 242, 246, 0.96)";
+  roundedRect(torsoX + suitWidth * 0.16, beltY, suitWidth * 0.68, torsoHeight * 0.11, suitWidth * 0.035);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(70, 88, 104, 0.58)";
+  ctx.lineWidth = Math.max(2, suitWidth * 0.012);
+  ctx.stroke();
+
+  ctx.fillStyle = "#1f72b8";
+  roundedRect(torsoX + suitWidth * 0.28, beltY + torsoHeight * 0.018, suitWidth * 0.12, torsoHeight * 0.07, 4);
+  ctx.fill();
+  roundedRect(torsoX + suitWidth * 0.6, beltY + torsoHeight * 0.018, suitWidth * 0.12, torsoHeight * 0.07, 4);
+  ctx.fill();
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+  roundedRect(torsoX + suitWidth * 0.62, torsoY + torsoHeight * 0.55, suitWidth * 0.2, torsoHeight * 0.23, 10);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(94, 113, 128, 0.38)";
+  ctx.stroke();
+
+  ctx.strokeStyle = "rgba(115, 132, 145, 0.26)";
+  ctx.lineWidth = Math.max(1.2, suitWidth * 0.006);
+  for (let i = 0; i < 8; i += 1) {
+    const y = torsoY + torsoHeight * (0.16 + i * 0.095);
+    ctx.beginPath();
+    ctx.moveTo(torsoX + suitWidth * 0.13, y);
+    ctx.quadraticCurveTo(torsoX + suitWidth * 0.5, y + torsoHeight * 0.025, torsoX + suitWidth * 0.87, y);
+    ctx.stroke();
+  }
+
+  const metal = ctx.createLinearGradient(torsoX, collarY, torsoX, collarY + torsoHeight * 0.16);
+  metal.addColorStop(0, "#f8fbfc");
+  metal.addColorStop(0.45, "#8999a5");
+  metal.addColorStop(1, "#eff5f8");
+  ctx.fillStyle = metal;
+  roundedRect(torsoX + suitWidth * 0.33, collarY, suitWidth * 0.34, torsoHeight * 0.12, torsoHeight * 0.055);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(43, 59, 72, 0.65)";
+  ctx.lineWidth = Math.max(2, suitWidth * 0.014);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
 function drawGlassHelmet(center, radius, theme) {
   const gradient = ctx.createRadialGradient(
     center.x - radius * 0.35,
@@ -788,6 +857,7 @@ function drawSuit(pose, width, height) {
   ctx.lineWidth = Math.max(3, suitWidth * 0.022);
   ctx.stroke();
   drawSuitSeams(torsoX, torsoY, suitWidth, torsoHeight, theme);
+  drawCanvasSuitHardware(torsoX, torsoY, suitWidth, torsoHeight);
 
   ctx.fillStyle = "rgba(255, 255, 255, 0.42)";
   roundedRect(torsoX + suitWidth * 0.1, torsoY + torsoHeight * 0.1, suitWidth * 0.18, torsoHeight * 0.76, 14);
@@ -1159,13 +1229,7 @@ function render() {
       setStatus("已检测到人体，正在贴合宇航服", "live");
       hasPose = true;
     }
-    if (partSuitReady()) {
-      drawPartSuit(poseToDraw, width, height);
-    } else if (realSuitReady) {
-      drawSegmentedRealSuit(poseToDraw, width, height);
-    } else {
-      drawSuit(poseToDraw, width, height);
-    }
+    drawSuit(poseToDraw, width, height);
   }
 
   if (running) {
