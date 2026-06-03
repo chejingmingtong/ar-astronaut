@@ -35,11 +35,20 @@
             <span class="brand-mark">A</span>
             <span>试衣间</span>
           </div>
+          <div class="top-actions">
+          <button class="icon-button" id="switchCameraButton" type="button" aria-label="切换前后摄像头">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 12a7 7 0 0 1 11.9-5M16 3v4h-4" />
+              <path d="M20 12a7 7 0 0 1-11.9 5M8 21v-4h4" />
+              <circle cx="12" cy="12" r="2.8" />
+            </svg>
+          </button>
           <button class="icon-button" id="shareButton" type="button" aria-label="显示扫码入口">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M4 4h7v7H4zM6 6v3h3V6zM13 4h7v7h-7zM15 6v3h3V6zM4 13h7v7H4zM6 15v3h3v-3zM14 14h2v2h-2zM18 14h2v2h-2zM16 16h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z" />
             </svg>
           </button>
+          </div>
         </div>
 
         <div class="control-dock">
@@ -75,7 +84,7 @@
       </aside>
     </main>
 
-    <script src="./vendor/qrcode.js?v=drawn-v1"></script>
-    <script type="module" src="./app.js?v=drawn-v1"></script>
+    <script src="./vendor/qrcode.js?v=drawn-camera-v1"></script>
+    <script type="module" src="./app.js?v=drawn-camera-v1"></script>
   </body>
 </html>

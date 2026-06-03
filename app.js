@@ -11,6 +11,8 @@ const shareUrl = document.querySelector("#shareUrl");
 const qrImage = document.querySelector("#qrImage");
 const startLabel = document.querySelector("#startLabel");
 const captureButton = document.querySelector("#captureButton");
+const switchCameraButton = document.querySelector("#switchCameraButton");
+const stage = document.querySelector(".stage");
 const realSuitImage = new Image();
 const partSuitImages = {
   body: new Image(),
@@ -28,11 +30,13 @@ let smoothedPose = null;
 let lastGoodPoseAt = 0;
 let lastStatusText = "";
 let realSuitReady = false;
+let cameraFacingMode = "environment";
+let currentStream = null;
 
 const poseHoldMs = 900;
 const smoothing = 0.72;
 const previewMode = new URLSearchParams(window.location.search).get("preview") === "1";
-const assetVersion = "drawn-v1";
+const assetVersion = "drawn-camera-v1";
 
 realSuitImage.onload = () => {
   realSuitReady = true;
@@ -166,6 +170,12 @@ async function loadPoseModel() {
   }
 }
 
+function stopCameraStream() {
+  if (!currentStream) return;
+  currentStream.getTracks().forEach((track) => track.stop());
+  currentStream = null;
+}
+
 async function startCamera() {
   try {
     const model = await loadPoseModel();
@@ -174,22 +184,25 @@ async function startCamera() {
       return;
     }
 
+    stopCameraStream();
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
-        facingMode: "user",
+        facingMode: { ideal: cameraFacingMode },
         width: { ideal: 1280 },
         height: { ideal: 720 },
       },
       audio: false,
     });
 
+    currentStream = stream;
     video.srcObject = stream;
     await video.play();
 
     running = true;
     startLabel.textContent = "AR 识别中";
     startButton.disabled = true;
-    setStatus("请站入画面，系统会自动贴合宇航服", "live");
+    stage.classList.toggle("is-rear-camera", cameraFacingMode === "environment");
+    setStatus(cameraFacingMode === "environment" ? "后置摄像头已开启，请对准人体" : "前置摄像头已开启，请站入画面", "live");
     requestAnimationFrame(render);
   } catch (error) {
     console.warn(error);
@@ -215,8 +228,9 @@ function getVideoDisplayRect(width, height) {
 }
 
 function mapPoint(point, rect) {
+  const shouldMirror = cameraFacingMode === "user";
   return {
-    x: rect.x + (1 - point.x) * rect.width,
+    x: rect.x + (shouldMirror ? 1 - point.x : point.x) * rect.width,
     y: rect.y + point.y * rect.height,
     score: point.visibility ?? 1,
   };
@@ -1249,6 +1263,18 @@ captureButton.addEventListener("click", () => {
 });
 
 startButton.addEventListener("click", startCamera);
+switchCameraButton.addEventListener("click", async () => {
+  cameraFacingMode = cameraFacingMode === "user" ? "environment" : "user";
+  stage.classList.toggle("is-rear-camera", cameraFacingMode === "environment");
+
+  if (currentStream || running) {
+    startButton.disabled = true;
+    setStatus("正在切换摄像头", "live");
+    await startCamera();
+  } else {
+    setStatus(cameraFacingMode === "environment" ? "已选择后置摄像头" : "已选择前置摄像头", "idle");
+  }
+});
 shareButton.addEventListener("click", () => qrPanel.classList.remove("is-hidden"));
 closeQrButton.addEventListener("click", () => qrPanel.classList.add("is-hidden"));
 window.addEventListener("resize", resizeCanvas);

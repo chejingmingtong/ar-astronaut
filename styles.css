@@ -76,6 +76,10 @@ input {
     #c6eaf2;
 }
 
+.stage.is-rear-camera #camera {
+  transform: none;
+}
+
 #arCanvas {
   z-index: 2;
 }
@@ -209,6 +213,11 @@ input {
   border-radius: 50%;
   background: var(--accent);
   color: #08131b;
+}
+
+.top-actions {
+  display: inline-flex;
+  gap: 8px;
 }
 
 .icon-button {
